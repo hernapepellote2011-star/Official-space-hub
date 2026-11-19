@@ -7,6 +7,8 @@ local ContentProvider = game:GetService("ContentProvider")
 local HttpService = game:GetService("HttpService")
 local GuiService = game:GetService("GuiService")
 local HapticService = game:GetService("HapticService")
+local RunService = game:GetService("RunService")
+local StatsService = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 
@@ -3126,6 +3128,91 @@ function SpaceHub:CreateWindow(settings)
 			end
 		end,
 	})
+	sApi:CreateSection("Analytics")
+	local analyticsCard = new("Frame", {
+		LayoutOrder = sApi._nextOrder(), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = WHITE, BorderSizePixel = 0,
+	}, settingsPage)
+	corner(analyticsCard, 9)
+	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(STEEL_A, STEEL_B) }, analyticsCard)
+	metalStroke(analyticsCard, 1.5)
+	pad(analyticsCard, 11, 12, 11, 12)
+	new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, analyticsCard)
+	makeLabel(analyticsCard, {
+		LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 20), Text = "SPACE HUB ANALYTICS",
+		Font = Enum.Font.GothamBold, TextSize = 13,
+	})
+	local analyticsNotice = makeLabel(analyticsCard, {
+		LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+		Text = "Aviso fijo: las métricas se calculan localmente. No se envían datos personales ni estadísticas a servidores externos.",
+		TextColor3 = MUTED, TextSize = 11, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	local analyticsStats = makeLabel(analyticsCard, {
+		LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 54), Text = "FPS: calculando...\nPing: calculando...\nMemoria: calculando...",
+		Font = Enum.Font.GothamMedium, TextSize = 12, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	local analyticsSession = makeLabel(analyticsCard, {
+		LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 18), Text = "Sesión: 00:00  |  Controles: 0",
+		TextColor3 = MUTED, TextSize = 11,
+	})
+	local analyticsButtonFrame, analyticsButton = makeButton(analyticsCard, "Aplicar ajustes recomendados", 5, 36)
+	analyticsButtonFrame.LayoutOrder = 5
+	analyticsButton.TextSize = 12
+	register("Analytics", "Settings", analyticsCard, settingsTab)
+	local analyticsStarted = os.clock()
+	local analyticsFPS, fpsElapsed, fpsFrames = 0, 0, 0
+	local lastAnalyticsNotice = 0
+	local function updateAnalytics(dt)
+		fpsElapsed += dt
+		fpsFrames += 1
+		if fpsElapsed >= 1 then
+			analyticsFPS = math.floor(fpsFrames / math.max(fpsElapsed, 0.001) + 0.5)
+			fpsElapsed, fpsFrames = 0, 0
+		end
+	end
+	local analyticsRenderConnection = RunService.RenderStepped:Connect(updateAnalytics)
+	table.insert(connections, analyticsRenderConnection)
+	local function formatDuration(seconds)
+		seconds = math.floor(seconds)
+		return string.format("%02d:%02d", math.floor(seconds / 60), seconds % 60)
+	end
+	analyticsButton.Activated:Connect(function()
+		SpaceHub.AutoSave = true
+		SpaceHub.Haptics = false
+		local autoFlag = SpaceHub.Flags["SpaceHub_AutoSave"]
+		local vibrationFlag = SpaceHub.Flags["SpaceHub_Vibration"]
+		if autoFlag then autoFlag:Set(true) end
+		if vibrationFlag then vibrationFlag:Set(false) end
+		analyticsNotice.Text = "Ajustes recomendados aplicados: guardado automático activado y vibración desactivada para reducir efectos innecesarios."
+		SpaceHub:Notify({ Title = "Ajustes recomendados aplicados", Content = "Guardado automático: activado. Vibración: desactivada.", Duration = 4 })
+	end)
+	task.spawn(function()
+		while analyticsCard.Parent and gui.Parent do
+			local ping = -1
+			pcall(function()
+				ping = math.floor(player:GetNetworkPing() * 1000 + 0.5)
+			end)
+			local memory = -1
+			pcall(function()
+				memory = math.floor(StatsService:GetTotalMemoryUsageMb() + 0.5)
+			end)
+			local pingText = ping >= 0 and (tostring(ping) .. " ms") or "No disponible"
+			local memoryText = memory >= 0 and (tostring(memory) .. " MB") or "No disponible"
+			analyticsStats.Text = "FPS: " .. tostring(analyticsFPS) .. "\nPing: " .. pingText .. "\nMemoria: " .. memoryText
+			analyticsSession.Text = "Sesión: " .. formatDuration(os.clock() - analyticsStarted) .. "  |  Controles: " .. tostring(#index)
+			if os.clock() - lastAnalyticsNotice >= 45 then
+				if analyticsFPS > 0 and analyticsFPS < 25 then
+					lastAnalyticsNotice = os.clock()
+					SpaceHub:Notify({ Title = "Aviso de rendimiento", Content = "Los FPS están bajos. Prueba cerrar otras interfaces y aplicar los ajustes recomendados.", Duration = 5 })
+				elseif ping >= 250 then
+					lastAnalyticsNotice = os.clock()
+					SpaceHub:Notify({ Title = "Aviso de conexión", Content = "El ping está elevado. Puede haber retrasos de red.", Duration = 5 })
+				end
+			end
+			task.wait(2)
+		end
+	end)
+
 	sApi:CreateSection("Configuration")
 	sApi:CreateButton({
 		Name = "Save configuration",
@@ -3142,13 +3229,13 @@ function SpaceHub:CreateWindow(settings)
 		end,
 	})
 	sApi:CreateToggle({
-		Name = "Auto save", CurrentValue = true,
+		Name = "Auto save", CurrentValue = true, Flag = "SpaceHub_AutoSave",
 		Callback = function(v)
 			SpaceHub.AutoSave = v
 		end,
 	})
 	sApi:CreateToggle({
-		Name = "Vibration", CurrentValue = true,
+		Name = "Vibration", CurrentValue = true, Flag = "SpaceHub_Vibration",
 		Callback = function(v)
 			SpaceHub.Haptics = v
 		end,
