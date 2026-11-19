@@ -21,6 +21,8 @@ local ASSETS = {
 	Arrow = "rbxassetid://126239360781702",
 	Minimize = "rbxassetid://70481750251295",
 	Close = "rbxassetid://128546300558788",
+	Back = "rbxassetid://131669268202968",
+	Copy = "rbxassetid://97265175061437",
 }
 SpaceHub.Assets = ASSETS
 
@@ -2885,10 +2887,23 @@ function SpaceHub:CreateWindow(settings)
 	local profileView = new("CanvasGroup", {
 		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1, Visible = false, ZIndex = 3,
 	}, body)
-	local backFrame, backBtn = makeButton(profileView, "< Back", 1, 28)
+	local function iconOnButton(btn, id, fallbackText)
+		btn.Text = ""
+		local img = new("ImageLabel", {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(20, 20),
+			BackgroundTransparency = 1, Image = id, ImageColor3 = WHITE, ScaleType = Enum.ScaleType.Fit,
+		}, btn)
+		loadImage(img, id, function()
+			img:Destroy()
+			btn.Text = fallbackText
+		end)
+		return img
+	end
+	local backFrame, backBtn = makeButton(profileView, "", 1, 28)
 	backFrame.Position = UDim2.fromOffset(12, 8)
 	backFrame.Size = UDim2.fromOffset(84, 28)
 	backBtn.TextSize = 12
+	iconOnButton(backBtn, ASSETS.Back, "< Back")
 	makeLabel(profileView, { Position = UDim2.fromOffset(108, 8), Size = UDim2.new(1, -120, 0, 28), Text = "Profile", Font = Enum.Font.GothamBold, TextSize = 15 })
 	local bigPhoto = new("ImageLabel", {
 		Position = UDim2.fromOffset(16, 46), Size = UDim2.fromOffset(60, 60), BackgroundColor3 = C(20, 22, 28), BorderSizePixel = 0,
@@ -2929,11 +2944,12 @@ function SpaceHub:CreateWindow(settings)
 			Position = UDim2.fromOffset(12, 24), Size = UDim2.new(1, -110, 0, 18), Text = value, Font = Enum.Font.GothamMedium,
 			TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd,
 		})
-		local m, b = makeButton(f, "Copy", 1, 28)
+		local m, b = makeButton(f, "", 1, 28)
 		m.AnchorPoint = Vector2.new(1, 0.5)
 		m.Position = UDim2.new(1, -8, 0.5, 0)
 		m.Size = UDim2.fromOffset(78, 28)
 		b.TextSize = 12
+		local copyImg = iconOnButton(b, ASSETS.Copy, "Copy")
 		local busy = false
 		b.Activated:Connect(function()
 			if busy then
@@ -2941,11 +2957,19 @@ function SpaceHub:CreateWindow(settings)
 			end
 			busy = true
 			local ok = copyText(value)
-			b.Text = ok and "Copied!" or "Unavailable"
-			b.TextColor3 = ok and GREEN or RED
+			if copyImg and copyImg.Parent then
+				copyImg.ImageColor3 = ok and GREEN or RED
+			else
+				b.Text = ok and "Copied!" or "Unavailable"
+				b.TextColor3 = ok and GREEN or RED
+			end
 			task.delay(1.2, function()
-				b.Text = "Copy"
-				b.TextColor3 = TEXT
+				if copyImg and copyImg.Parent then
+					copyImg.ImageColor3 = WHITE
+				else
+					b.Text = "Copy"
+					b.TextColor3 = TEXT
+				end
 				busy = false
 			end)
 		end)
