@@ -7,6 +7,8 @@ local ContentProvider = game:GetService("ContentProvider")
 local HttpService = game:GetService("HttpService")
 local GuiService = game:GetService("GuiService")
 local HapticService = game:GetService("HapticService")
+local RunService = game:GetService("RunService")
+local StatsService = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 
@@ -21,6 +23,8 @@ local ASSETS = {
 	Arrow = "rbxassetid://126239360781702",
 	Minimize = "rbxassetid://70481750251295",
 	Close = "rbxassetid://128546300558788",
+	Back = "rbxassetid://131669268202968",
+	Copy = "rbxassetid://97265175061437",
 }
 SpaceHub.Assets = ASSETS
 
@@ -2885,10 +2889,23 @@ function SpaceHub:CreateWindow(settings)
 	local profileView = new("CanvasGroup", {
 		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, GroupTransparency = 1, Visible = false, ZIndex = 3,
 	}, body)
-	local backFrame, backBtn = makeButton(profileView, "< Back", 1, 28)
+	local function iconOnButton(btn, id, fallbackText)
+		btn.Text = ""
+		local img = new("ImageLabel", {
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(20, 20),
+			BackgroundTransparency = 1, Image = id, ImageColor3 = WHITE, ScaleType = Enum.ScaleType.Fit,
+		}, btn)
+		loadImage(img, id, function()
+			img:Destroy()
+			btn.Text = fallbackText
+		end)
+		return img
+	end
+	local backFrame, backBtn = makeButton(profileView, "", 1, 28)
 	backFrame.Position = UDim2.fromOffset(12, 8)
 	backFrame.Size = UDim2.fromOffset(84, 28)
 	backBtn.TextSize = 12
+	iconOnButton(backBtn, ASSETS.Back, "< Back")
 	makeLabel(profileView, { Position = UDim2.fromOffset(108, 8), Size = UDim2.new(1, -120, 0, 28), Text = "Profile", Font = Enum.Font.GothamBold, TextSize = 15 })
 	local bigPhoto = new("ImageLabel", {
 		Position = UDim2.fromOffset(16, 46), Size = UDim2.fromOffset(60, 60), BackgroundColor3 = C(20, 22, 28), BorderSizePixel = 0,
@@ -2929,11 +2946,12 @@ function SpaceHub:CreateWindow(settings)
 			Position = UDim2.fromOffset(12, 24), Size = UDim2.new(1, -110, 0, 18), Text = value, Font = Enum.Font.GothamMedium,
 			TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd,
 		})
-		local m, b = makeButton(f, "Copy", 1, 28)
+		local m, b = makeButton(f, "", 1, 28)
 		m.AnchorPoint = Vector2.new(1, 0.5)
 		m.Position = UDim2.new(1, -8, 0.5, 0)
 		m.Size = UDim2.fromOffset(78, 28)
 		b.TextSize = 12
+		local copyImg = iconOnButton(b, ASSETS.Copy, "Copy")
 		local busy = false
 		b.Activated:Connect(function()
 			if busy then
@@ -2941,11 +2959,19 @@ function SpaceHub:CreateWindow(settings)
 			end
 			busy = true
 			local ok = copyText(value)
-			b.Text = ok and "Copied!" or "Unavailable"
-			b.TextColor3 = ok and GREEN or RED
+			if copyImg and copyImg.Parent then
+				copyImg.ImageColor3 = ok and GREEN or RED
+			else
+				b.Text = ok and "Copied!" or "Unavailable"
+				b.TextColor3 = ok and GREEN or RED
+			end
 			task.delay(1.2, function()
-				b.Text = "Copy"
-				b.TextColor3 = TEXT
+				if copyImg and copyImg.Parent then
+					copyImg.ImageColor3 = WHITE
+				else
+					b.Text = "Copy"
+					b.TextColor3 = TEXT
+				end
 				busy = false
 			end)
 		end)
@@ -3102,6 +3128,91 @@ function SpaceHub:CreateWindow(settings)
 			end
 		end,
 	})
+	sApi:CreateSection("Analytics")
+	local analyticsCard = new("Frame", {
+		LayoutOrder = sApi._nextOrder(), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = WHITE, BorderSizePixel = 0,
+	}, settingsPage)
+	corner(analyticsCard, 9)
+	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(STEEL_A, STEEL_B) }, analyticsCard)
+	metalStroke(analyticsCard, 1.5)
+	pad(analyticsCard, 11, 12, 11, 12)
+	new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, analyticsCard)
+	makeLabel(analyticsCard, {
+		LayoutOrder = 1, Size = UDim2.new(1, 0, 0, 20), Text = "SPACE HUB ANALYTICS",
+		Font = Enum.Font.GothamBold, TextSize = 13,
+	})
+	local analyticsNotice = makeLabel(analyticsCard, {
+		LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+		Text = "Aviso fijo: las métricas se calculan localmente. No se envían datos personales ni estadísticas a servidores externos.",
+		TextColor3 = MUTED, TextSize = 11, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	local analyticsStats = makeLabel(analyticsCard, {
+		LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 54), Text = "FPS: calculando...\nPing: calculando...\nMemoria: calculando...",
+		Font = Enum.Font.GothamMedium, TextSize = 12, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	local analyticsSession = makeLabel(analyticsCard, {
+		LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 18), Text = "Sesión: 00:00  |  Controles: 0",
+		TextColor3 = MUTED, TextSize = 11,
+	})
+	local analyticsButtonFrame, analyticsButton = makeButton(analyticsCard, "Aplicar ajustes recomendados", 5, 36)
+	analyticsButtonFrame.LayoutOrder = 5
+	analyticsButton.TextSize = 12
+	register("Analytics", "Settings", analyticsCard, settingsTab)
+	local analyticsStarted = os.clock()
+	local analyticsFPS, fpsElapsed, fpsFrames = 0, 0, 0
+	local lastAnalyticsNotice = 0
+	local function updateAnalytics(dt)
+		fpsElapsed += dt
+		fpsFrames += 1
+		if fpsElapsed >= 1 then
+			analyticsFPS = math.floor(fpsFrames / math.max(fpsElapsed, 0.001) + 0.5)
+			fpsElapsed, fpsFrames = 0, 0
+		end
+	end
+	local analyticsRenderConnection = RunService.RenderStepped:Connect(updateAnalytics)
+	table.insert(connections, analyticsRenderConnection)
+	local function formatDuration(seconds)
+		seconds = math.floor(seconds)
+		return string.format("%02d:%02d", math.floor(seconds / 60), seconds % 60)
+	end
+	analyticsButton.Activated:Connect(function()
+		SpaceHub.AutoSave = true
+		SpaceHub.Haptics = false
+		local autoFlag = SpaceHub.Flags["SpaceHub_AutoSave"]
+		local vibrationFlag = SpaceHub.Flags["SpaceHub_Vibration"]
+		if autoFlag then autoFlag:Set(true) end
+		if vibrationFlag then vibrationFlag:Set(false) end
+		analyticsNotice.Text = "Ajustes recomendados aplicados: guardado automático activado y vibración desactivada para reducir efectos innecesarios."
+		SpaceHub:Notify({ Title = "Ajustes recomendados aplicados", Content = "Guardado automático: activado. Vibración: desactivada.", Duration = 4 })
+	end)
+	task.spawn(function()
+		while analyticsCard.Parent and gui.Parent do
+			local ping = -1
+			pcall(function()
+				ping = math.floor(player:GetNetworkPing() * 1000 + 0.5)
+			end)
+			local memory = -1
+			pcall(function()
+				memory = math.floor(StatsService:GetTotalMemoryUsageMb() + 0.5)
+			end)
+			local pingText = ping >= 0 and (tostring(ping) .. " ms") or "No disponible"
+			local memoryText = memory >= 0 and (tostring(memory) .. " MB") or "No disponible"
+			analyticsStats.Text = "FPS: " .. tostring(analyticsFPS) .. "\nPing: " .. pingText .. "\nMemoria: " .. memoryText
+			analyticsSession.Text = "Sesión: " .. formatDuration(os.clock() - analyticsStarted) .. "  |  Controles: " .. tostring(#index)
+			if os.clock() - lastAnalyticsNotice >= 45 then
+				if analyticsFPS > 0 and analyticsFPS < 25 then
+					lastAnalyticsNotice = os.clock()
+					SpaceHub:Notify({ Title = "Aviso de rendimiento", Content = "Los FPS están bajos. Prueba cerrar otras interfaces y aplicar los ajustes recomendados.", Duration = 5 })
+				elseif ping >= 250 then
+					lastAnalyticsNotice = os.clock()
+					SpaceHub:Notify({ Title = "Aviso de conexión", Content = "El ping está elevado. Puede haber retrasos de red.", Duration = 5 })
+				end
+			end
+			task.wait(2)
+		end
+	end)
+
 	sApi:CreateSection("Configuration")
 	sApi:CreateButton({
 		Name = "Save configuration",
@@ -3118,13 +3229,13 @@ function SpaceHub:CreateWindow(settings)
 		end,
 	})
 	sApi:CreateToggle({
-		Name = "Auto save", CurrentValue = true,
+		Name = "Auto save", CurrentValue = true, Flag = "SpaceHub_AutoSave",
 		Callback = function(v)
 			SpaceHub.AutoSave = v
 		end,
 	})
 	sApi:CreateToggle({
-		Name = "Vibration", CurrentValue = true,
+		Name = "Vibration", CurrentValue = true, Flag = "SpaceHub_Vibration",
 		Callback = function(v)
 			SpaceHub.Haptics = v
 		end,
