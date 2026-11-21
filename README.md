@@ -15,7 +15,7 @@
 
 ---
 
-## 🚀 Inicio Rápido
+##  Inicio Rápido
 
 Carga la biblioteca directamente en tu script utilizando `loadstring`:
 
@@ -25,7 +25,7 @@ local SpaceHub = loadstring(game:HttpGet("https://githubusercontent.com"))()
 
 ---
 
-## 🪟 Crear una Ventana (`CreateWindow`)
+##  Crear una Ventana (`CreateWindow`)
 
 ```lua
 local Window = SpaceHub:CreateWindow({
@@ -63,7 +63,7 @@ local Window = SpaceHub:CreateWindow({
 
 ---
 
-## 📑 Pestañas y Secciones
+##  Pestañas y Secciones
 
 ```lua
 -- Crear una pestaña (el icono es opcional: puede ser rbxassetid://... o un número)
@@ -76,7 +76,7 @@ Section:Set("Nuevo nombre de sección") -- Actualizar texto
 
 ---
 
-## 🧩 Elementos de Interfaz
+##  Elementos de Interfaz
 
 ### 1. Etiqueta y Párrafo (`CreateLabel` / `CreateParagraph`)
 ```lua
@@ -236,7 +236,7 @@ local ColorPicker = MainTab:CreateColorPicker({
 
 ---
 
-## 🛠️ Componentes Especiales
+##  Componentes Especiales
 
 ### Botones Flotantes Arrastrables (`CreateFloatingButtons`)
 Crea botones en pantalla ideales para ejecutar acciones rápidas en dispositivos móviles:
@@ -272,7 +272,7 @@ local Spectate = MainTab:CreateSpectate({
 
 ---
 
-## 🔔 Notificaciones y Control de Ventana
+##  Notificaciones y Control de Ventana
 
 ```lua
 -- Enviar notificación
@@ -294,7 +294,7 @@ Window:Destroy()
 
 ---
 
-## 🔌 Sistema de Extensiones (`Blocks` y `Extend`)
+##  Sistema de Extensiones (`Blocks` y `Extend`)
 
 Puedes registrar nuevos elementos personalizados en la API o enganchar código cuando se crea la ventana:
 
