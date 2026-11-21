@@ -20,7 +20,7 @@
 Carga la biblioteca directamente en tu script utilizando `loadstring`:
 
 ```lua
-local SpaceHub = loadstring(game:HttpGet("https://githubusercontent.com"))()
+local SpaceHub = loadstring(game:HttpGet("https://raw.githubusercontent.com/hernapepellote2011-star/Official-space-hub/refs/heads/main/Space%20hub%20library.lua"))()
 ```
 
 ---
