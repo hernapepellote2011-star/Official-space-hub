@@ -1,10 +1,10 @@
-# 🌌 Space Hub UI Library (v2.1.0)
+#  Space Hub UI Library (v2.1.0)
 
 **Space Hub** es una biblioteca de interfaz de usuario (UI Library) moderna, ligera y multiplataforma escrita en Lua para Roblox. Está optimizada para funcionar tanto en **PC** como en **dispositivos móviles** (Android/iOS con ejecutores como Delta, Codex, Arceus X, etc.), ofreciendo soporte táctil nativo, respuesta háptica, guardado automático de configuraciones y módulos extensibles.
 
 ---
 
-## ✨ Características Principales
+##  Características Principales
 
 * **Diseño Multiplataforma:** Soporte nativo para pantallas táctiles, botón flotante móvil (`Show Menu`), redimensionamiento mediante agarre (`grip`) y modo píldora minimizada.
 * **10 Temas Integrados:** `Space`, `Titanium`, `Graphite`, `Cobalt`, `Emerald`, `Crimson`, `Violet`, `Steel`, `Obsidian` y `Amber` con cálculo automático de contraste.
