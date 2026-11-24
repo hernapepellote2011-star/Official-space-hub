@@ -580,28 +580,36 @@ local function withBoxAsset(cb)
 end
 
 local function makeEmptyState(parent, text, layoutOrder)
+	local GRAY = Color3.fromRGB(176, 176, 182)
+	local OUTLINE = Color3.fromRGB(102, 102, 106)
 	local f = new("Frame", {
 		Name = "SpaceHubEmptyState", LayoutOrder = layoutOrder or 0, Size = UDim2.new(1, 0, 0, 190),
 		BackgroundTransparency = 1, BorderSizePixel = 0,
 	}, parent)
+	local label = new("TextLabel", {
+		Position = UDim2.fromOffset(4, 6), Size = UDim2.new(1, -8, 0, 54), BackgroundTransparency = 1, Text = text,
+		Font = Enum.Font.GothamBlack, TextColor3 = GRAY, TextTransparency = 0.18, TextScaled = true, TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
+	}, f)
+	new("UITextSizeConstraint", { MaxTextSize = 26, MinTextSize = 10 }, label)
+	new("UIStroke", {
+		Thickness = 2.5, Color = OUTLINE, Transparency = 0.18, LineJoinMode = Enum.LineJoinMode.Round,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+	}, label)
 	local img = new("ImageLabel", {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(96, 96),
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 68), Size = UDim2.fromOffset(96, 96),
 		BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit, ImageTransparency = 1,
 	}, f)
 	local fallback = new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 34), Size = UDim2.fromOffset(64, 56),
-		BackgroundTransparency = 1, BorderSizePixel = 0,
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 88), Size = UDim2.fromOffset(64, 56),
+		BackgroundColor3 = GRAY, BackgroundTransparency = 0.3, BorderSizePixel = 0,
 	}, f)
 	corner(fallback, 8)
-	new("UIStroke", { Thickness = 2, Color = MUTED, Transparency = 0.3 }, fallback)
-	local label = makeLabel(f, {
-		Position = UDim2.fromOffset(0, 124), Size = UDim2.new(1, 0, 0, 40), Text = text, TextColor3 = MUTED,
-		TextSize = 14, Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
-	})
+	new("UIStroke", { Thickness = 2.5, Color = OUTLINE, Transparency = 0.18 }, fallback)
 	withBoxAsset(function(asset)
 		if asset and img.Parent then
 			img.Image = asset
-			img.ImageTransparency = 0
+			img.ImageTransparency = 0.18
 			fallback.Visible = false
 		end
 	end)
