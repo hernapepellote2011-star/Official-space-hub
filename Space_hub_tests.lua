@@ -546,6 +546,68 @@ local function makeLabel(parent, props)
 	return new("TextLabel", props, parent)
 end
 
+local BOX_URL = "https://raw.githubusercontent.com/hernapepellote2011-star/Official-space-hub-/main/Box.png"
+local boxState, boxAsset, boxPending = "idle", nil, {}
+
+local function withBoxAsset(cb)
+	if boxState == "done" then
+		cb(boxAsset)
+		return
+	end
+	table.insert(boxPending, cb)
+	if boxState == "loading" then
+		return
+	end
+	boxState = "loading"
+	task.spawn(function()
+		local asset
+		pcall(function()
+			if writefile and getcustomasset then
+				local data = game:HttpGet(BOX_URL)
+				if data and #data > 0 then
+					writefile("SpaceHub_Box.png", data)
+					asset = getcustomasset("SpaceHub_Box.png")
+				end
+			end
+		end)
+		boxAsset = asset
+		boxState = "done"
+		for _, f in ipairs(boxPending) do
+			pcall(f, asset)
+		end
+		boxPending = {}
+	end)
+end
+
+local function makeEmptyState(parent, text, layoutOrder)
+	local f = new("Frame", {
+		Name = "SpaceHubEmptyState", LayoutOrder = layoutOrder or 0, Size = UDim2.new(1, 0, 0, 190),
+		BackgroundTransparency = 1, BorderSizePixel = 0,
+	}, parent)
+	local img = new("ImageLabel", {
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.fromOffset(96, 96),
+		BackgroundTransparency = 1, ScaleType = Enum.ScaleType.Fit, ImageTransparency = 1,
+	}, f)
+	local fallback = new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 34), Size = UDim2.fromOffset(64, 56),
+		BackgroundTransparency = 1, BorderSizePixel = 0,
+	}, f)
+	corner(fallback, 8)
+	new("UIStroke", { Thickness = 2, Color = MUTED, Transparency = 0.3 }, fallback)
+	local label = makeLabel(f, {
+		Position = UDim2.fromOffset(0, 124), Size = UDim2.new(1, 0, 0, 40), Text = text, TextColor3 = MUTED,
+		TextSize = 14, Font = Enum.Font.GothamMedium, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
+	})
+	withBoxAsset(function(asset)
+		if asset and img.Parent then
+			img.Image = asset
+			img.ImageTransparency = 0
+			fallback.Visible = false
+		end
+	end)
+	return f, label
+end
+
 local function makeButton(parent, caption, order, height, c1, c2, left)
 	local frame = new("Frame", {
 		LayoutOrder = order, Size = UDim2.new(1, 0, 0, height), BackgroundColor3 = WHITE, BorderSizePixel = 0,
@@ -1080,7 +1142,7 @@ local function showLoading(settings)
 	gui:Destroy()
 end
 
-local function makePage(parent)
+local function makePage(parent, noEmpty)
 	local page = new("ScrollingFrame", {
 		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
 		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -1089,6 +1151,28 @@ local function makePage(parent)
 	themed(page, "ScrollBarImageColor3", "Accent")
 	new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, page)
 	pad(page, 3, 8, 12, 3)
+	if not noEmpty then
+		local emptyFrame = makeEmptyState(page, "Está vacío", -1000)
+		local function refresh()
+			local has = false
+			for _, c in ipairs(page:GetChildren()) do
+				if c:IsA("GuiObject") and c ~= emptyFrame then
+					has = true
+					break
+				end
+			end
+			emptyFrame.Visible = not has
+		end
+		page.ChildAdded:Connect(function(c)
+			if c ~= emptyFrame then
+				task.defer(refresh)
+			end
+		end)
+		page.ChildRemoved:Connect(function()
+			task.defer(refresh)
+		end)
+		refresh()
+	end
 	return page
 end
 
@@ -2651,10 +2735,14 @@ function SpaceHub:CreateWindow(settings)
 					end)
 				end
 			end
-			hint.Text = "No results."
-			hint.Visible = (n == 0)
+			hint.Text = ""
+			hint.Visible = false
+			if n == 0 then
+				local ef = makeEmptyState(results, "No se ha encontrado lo que buscas", 1)
+				ef.Size = UDim2.new(1, 0, 0, 170)
+			end
 			if vertical then
-				results.Size = UDim2.new(1, 0, 0, math.clamp(12 + math.max(n, 1) * 36, 44, 168))
+				results.Size = UDim2.new(1, 0, 0, n == 0 and 190 or math.clamp(12 + n * 36, 44, 168))
 			end
 		end
 
@@ -2754,7 +2842,7 @@ function SpaceHub:CreateWindow(settings)
 	makeLabel(settingsView, {
 		Position = UDim2.fromOffset(16, 8), Size = UDim2.new(1, -32, 0, 22), Text = "Settings", Font = Enum.Font.GothamBold, TextSize = 15,
 	})
-	local settingsPage = makePage(settingsView)
+	local settingsPage = makePage(settingsView, true)
 	settingsPage.Position = UDim2.fromOffset(12, 40)
 	settingsPage.Size = UDim2.new(1, -24, 1, -48)
 	settingsPage.Visible = true
