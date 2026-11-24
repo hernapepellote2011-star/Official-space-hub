@@ -1,4 +1,4 @@
-local SpaceHub = { Version = "2.1.0", Flags = {}, Icons = {}, AutoSave = true, Haptics = true }
+local SpaceHub = { Version = "2.2.0", Flags = {}, Icons = {}, AutoSave = true, Haptics = true }
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -37,7 +37,6 @@ local SIZE = {
 	PillW = 200, PillH = 44, Profile = 60,
 }
 
--- Escala de la interfaz según el dispositivo (celular más pequeño, tablet mediano, PC más grande)
 local DEVICE_SCALES = { Phone = 0.8, Tablet = 0.9, PC = 1 }
 local DEVICE_OPTIONS = {
 	{ Name = "Phone", Label = "Teléfono", Image = ASSETS.DevicePhone, Symbol = "M" },
@@ -2396,7 +2395,6 @@ function SpaceHub:CreateWindow(settings)
 	self._settings = settings
 	self.Flags = {}
 
-	-- Detecta el dispositivo antes de dibujar cualquier interfaz
 	currentDevice = (settings.Device and DEVICE_SCALES[settings.Device]) and settings.Device or detectDevice()
 	deviceScale = DEVICE_SCALES[currentDevice] or 1
 	SpaceHub.Device = currentDevice
@@ -2510,6 +2508,8 @@ function SpaceHub:CreateWindow(settings)
 	end
 	local btnSettings = iconButton(ASSETS.Settings, "gear", 0)
 	local btnMin = iconButton(ASSETS.Minimize, "-", 32)
+	btnMin.Size = UDim2.fromOffset(22, 22)
+	btnMin.Position = UDim2.fromOffset(36, 4)
 	local btnClose = iconButton(ASSETS.Close, "x", 64)
 
 	local pillControls = new("CanvasGroup", {
@@ -3134,22 +3134,55 @@ function SpaceHub:CreateWindow(settings)
 
 	sApi:CreateSection("Window")
 
+	local resizing
 	local grip = new("TextButton", {
-		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -4, 1, -4), Size = UDim2.fromOffset(24, 24),
-		BackgroundTransparency = 1, AutoButtonColor = false, Text = "◢", Font = Enum.Font.GothamBold,
-		TextSize = 16, TextColor3 = BAR_GRAY, ZIndex = 20,
-	}, body)
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, 8, 1, 8), Size = UDim2.fromOffset(36, 36),
+		BackgroundTransparency = 1, AutoButtonColor = false, Text = "", ZIndex = 20,
+	}, container)
+	local gripHolder = new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(24, 24),
+		BackgroundTransparency = 1, Active = false, ZIndex = 21,
+	}, grip)
+	local gripScale = new("UIScale", { Scale = 1 }, gripHolder)
+	local gripClip = new("Frame", {
+		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, ClipsDescendants = true, Active = false, ZIndex = 21,
+	}, gripHolder)
+	local gripGlowRing = new("Frame", {
+		Position = UDim2.fromOffset(-16, -16), Size = UDim2.fromOffset(36, 36), BackgroundTransparency = 1, Active = false, ZIndex = 21,
+	}, gripClip)
+	corner(gripGlowRing, UDim.new(1, 0))
+	local gripGlow = new("UIStroke", { Thickness = 8, Color = WHITE, Transparency = 1 }, gripGlowRing)
+	local gripRing = new("Frame", {
+		Position = UDim2.fromOffset(-16, -16), Size = UDim2.fromOffset(36, 36), BackgroundTransparency = 1, Active = false, ZIndex = 22,
+	}, gripClip)
+	corner(gripRing, UDim.new(1, 0))
+	local gripStroke = new("UIStroke", { Thickness = 3, Color = BAR_GRAY }, gripRing)
+	local gripHover = false
+	local function gripActive(v)
+		local on = v or gripHover
+		tw(gripStroke, 0.18, { Color = on and WHITE or BAR_GRAY, Thickness = v and 4 or 3 })
+		tw(gripGlow, 0.25, { Transparency = v and 0.72 or 1 })
+		tw(gripScale, 0.2, { Scale = v and 1.35 or 1 }, Enum.EasingStyle.Back)
+		if not v then
+			tw(gripHolder, 0.4, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
+		end
+	end
 	grip.MouseEnter:Connect(function()
-		tw(grip, 0.15, { TextColor3 = WHITE })
+		gripHover = true
+		if not resizing then
+			tw(gripStroke, 0.15, { Color = WHITE })
+		end
 	end)
 	grip.MouseLeave:Connect(function()
-		tw(grip, 0.15, { TextColor3 = BAR_GRAY })
+		gripHover = false
+		if not resizing then
+			tw(gripStroke, 0.15, { Color = BAR_GRAY })
+		end
 	end)
-	local resizing
 	grip.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			resizing = { start = input.Position, w = W, h = H }
-			tw(grip, 0.15, { TextColor3 = WHITE })
+			resizing = { start = input.Position, last = input.Position, w = W, h = H }
+			gripActive(true)
 		end
 	end)
 
@@ -3181,6 +3214,7 @@ function SpaceHub:CreateWindow(settings)
 					controls.Visible = false
 				end
 			end)
+			grip.Visible = false
 			tw(bar, 0.2, { BackgroundTransparency = 1 }).Completed:Connect(function()
 				if minimized then
 					grab.Visible = false
@@ -3190,6 +3224,7 @@ function SpaceHub:CreateWindow(settings)
 			tw(pillControls, 0.3, { GroupTransparency = 0 })
 		else
 			grab.Visible = true
+			grip.Visible = true
 			tw(bar, 0.25, { BackgroundTransparency = 0 })
 			body.Visible = true
 			controls.Visible = true
@@ -3262,6 +3297,7 @@ function SpaceHub:CreateWindow(settings)
 				start = input.Position, last = input.Position,
 				pos = Vector2.new(container.Position.X.Offset, container.Position.Y.Offset),
 				moved = false, grab = fromGrab, time = os.clock(), move = onlyMove,
+				noMove = (minimized and not onlyMove) or false,
 			}
 		end
 	end
@@ -3284,9 +3320,16 @@ function SpaceHub:CreateWindow(settings)
 			W = math.clamp(resizing.w + d.X / deviceScale, math.min(SIZE.MinW, maxW()), maxW())
 			H = math.clamp(resizing.h + d.Y / deviceScale, math.min(SIZE.MinH, maxH()), maxH())
 			container.Size = UDim2.fromOffset(W, H)
+			local step = input.Position - resizing.last
+			resizing.last = input.Position
+			local diag = math.clamp((step.X + step.Y) * 1.2, -7, 7)
+			tw(gripHolder, 0.08, { Position = UDim2.new(0.5, diag, 0.5, diag) }, Enum.EasingStyle.Linear)
 			return
 		end
 		if not drag then
+			return
+		end
+		if drag.noMove then
 			return
 		end
 		local d = input.Position - drag.start
@@ -3315,7 +3358,7 @@ function SpaceHub:CreateWindow(settings)
 		end
 		if resizing then
 			resizing = nil
-			tw(grip, 0.15, { TextColor3 = BAR_GRAY })
+			gripActive(false)
 		end
 		if drag then
 			local d0 = drag
@@ -3345,7 +3388,6 @@ function SpaceHub:CreateWindow(settings)
 		mobile = UserInputService.TouchEnabled
 	end
 
-	-- Cambia el tamaño de toda la interfaz según el dispositivo elegido
 	function applyDevice(name, animate)
 		local sc = DEVICE_SCALES[name]
 		if not sc then
@@ -3383,7 +3425,6 @@ function SpaceHub:CreateWindow(settings)
 		return true
 	end
 
-	-- Ventana "Adaptar a": tres botones cuadrados (Teléfono, PC, Tablet)
 	function openAdapt()
 		if dialogOpen then
 			return
@@ -3542,19 +3583,121 @@ function SpaceHub:CreateWindow(settings)
 	end
 
 	applyMode("vertical")
-	tw(frame, 0.4, { GroupTransparency = 0 }, Enum.EasingStyle.Sine)
+
+	local function collectFade(root, onlyRoot)
+		local list = {}
+		local function add(o)
+			if o:IsA("GuiObject") then
+				table.insert(list, { o, "BackgroundTransparency", o.BackgroundTransparency })
+				if o:IsA("CanvasGroup") then
+					table.insert(list, { o, "GroupTransparency", o.GroupTransparency })
+				end
+				if o:IsA("ImageLabel") or o:IsA("ImageButton") then
+					table.insert(list, { o, "ImageTransparency", o.ImageTransparency })
+				end
+				if o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox") then
+					table.insert(list, { o, "TextTransparency", o.TextTransparency })
+				end
+				if o:IsA("ScrollingFrame") then
+					table.insert(list, { o, "ScrollBarImageTransparency", o.ScrollBarImageTransparency })
+				end
+			elseif o:IsA("UIStroke") then
+				table.insert(list, { o, "Transparency", o.Transparency })
+			end
+		end
+		add(root)
+		if not onlyRoot then
+			for _, d in ipairs(root:GetDescendants()) do
+				add(d)
+			end
+		end
+		for _, it in ipairs(list) do
+			if it[3] < 1 then
+				pcall(function()
+					it[1][it[2]] = 1
+				end)
+			end
+		end
+		return list
+	end
+	local function playFade(list, t, style)
+		for _, it in ipairs(list) do
+			if it[3] < 1 and it[1].Parent then
+				tw(it[1], t, { [it[2]] = it[3] }, style or Enum.EasingStyle.Sine)
+			end
+		end
+	end
+	local function restoreFade(list)
+		for _, it in ipairs(list) do
+			pcall(function()
+				it[1][it[2]] = it[3]
+			end)
+		end
+	end
+
+	local stageFades, contentFade = {}, nil
+	local okStage = pcall(function()
+		local s1, s2, s3, s4, s5, s6 = {}, {}, {}, {}, {}, {}
+		local function merge(dst, lst)
+			for _, it in ipairs(lst) do
+				table.insert(dst, it)
+			end
+		end
+		merge(s2, collectFade(header))
+		merge(s3, collectFade(controls))
+		for _, ch in ipairs(body:GetChildren()) do
+			if ch ~= mainView and ch ~= grip then
+				merge(s4, collectFade(ch))
+			end
+		end
+		for _, ch in ipairs(mainView:GetChildren()) do
+			if ch == content then
+				contentFade = collectFade(content, true)
+			elseif ch == card then
+				merge(s5, collectFade(ch))
+			elseif ch:IsA("GuiObject") then
+				merge(s4, collectFade(ch))
+			end
+		end
+		merge(s6, collectFade(grip))
+		merge(s6, collectFade(grab))
+		stageFades = { s2, s3, s4, s5, s6 }
+	end)
+	if not okStage then
+		for _, l in ipairs(stageFades) do
+			restoreFade(l)
+		end
+		if contentFade then
+			restoreFade(contentFade)
+		end
+		stageFades, contentFade = {}, nil
+	end
+
+	tw(frame, 0.8, { GroupTransparency = 0 }, Enum.EasingStyle.Sine)
 	for _, s in ipairs(shadows) do
-		tw(s.f, 0.4, { BackgroundTransparency = s.final })
+		tw(s.f, 0.8, { BackgroundTransparency = s.final })
+	end
+	for _, list in ipairs(stageFades) do
+		task.wait(0.35)
+		playFade(list, 0.55)
+	end
+	if #stageFades > 0 then
+		task.wait(0.6)
 	end
 
 	Window.Raw = {
-		Gui = gui, Container = container, Frame = frame, Header = header, Grab = grab, Body = body, Content = content,
+		Gui = gui, Container = container, Frame = frame, Header = header, Grab = grab, Grip = grip, Body = body, Content = content,
 		TabList = tabList, SettingsApi = sApi, SettingsPage = settingsPage, ShowView = showView, SelectTab = selectTab,
 		ApplyMode = applyMode, SetMinimized = setMinimized, Confirm = confirm, Register = register,
 		ApplyDevice = applyDevice,
 	}
 
 	self._window = Window
+
+	task.wait(0.5)
+	if contentFade then
+		playFade(contentFade, 0.5)
+	end
 	task.spawn(function()
 		pcall(discordPrompt, settings.Discord)
 	end)
